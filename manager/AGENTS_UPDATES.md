@@ -56,3 +56,86 @@
 │   └── AGENTS_UPDATES.md
 └── stock_crawler/     # Stock analysis project
 ```
+
+---
+
+## 2026-03-17 Session
+
+### AGENTS.md Condensed
+
+**Reduced from 11,600+ characters to ~1,100 characters (~90% reduction)**
+
+#### Key Changes
+
+1. **Removed daily notes** - Now only for unclassified content
+2. **Channel notes** - Moved to project directories
+3. **Gemini CLI** - Moved to separate section
+4. **Extreme simplification** - Bullet points only, minimal words
+
+#### Current Structure
+
+```
+# AGENTS.md
+
+## Startup
+1. SOUL.md, USER.md, PROJECTS.md
+2. Match chat_id → read project docs
+3. MEMORY.md (main session only)
+
+## Memory
+- Project/channel → project dirs
+- Personal → MEMORY.md (main only)
+- Other → memory/YYYY-MM-DD.md
+
+## Safety
+- `trash` > `rm`
+- Verify assumptions before concluding impossible
+
+## Chat
+- Respond: mentioned, add value, correct misinfo
+- Silent: banter, answered, interrupt flow
+- One reaction max
+
+## Coding Standards
+
+### Language
+- ALL code/docs in ENGLISH
+- ASCII only in code blocks
+
+### Before Code
+1. Rescan project
+2. Impact assessment
+3. Consult (STOP if issues)
+
+### After Code (MUST)
+1. Run tests
+2. Unit tests
+3. Syntax check
+4. Functional test
+
+**NO VERIFY = NOT DONE**
+
+### Commit
+- **NO commit without explicit request**
+
+### Principles
+1. One responsibility per module
+2. DRY — reuse, don't rewrite
+3. Test-Driven
+
+## Gemini CLI
+
+**Default for code mods.**
+
+**MANDATORY:** Include in EVERY prompt:
+```
+ONLY modify the code. DO NOT run any tests, DO NOT run make, and DO NOT execute any shell commands.
+```
+
+- Simple: `gemini "prompt"`
+- Complex: `nohup` or background
+- After: `py_compile` verify
+
+---
+**NO EXCEPTIONS**
+```
