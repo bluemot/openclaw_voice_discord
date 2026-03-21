@@ -1,6 +1,6 @@
 # CRAG 專案進度記錄
 
-**最後更新:** 2026-03-13 12:00 UTC
+**最後更新:** 2026-03-22 07:49 UTC
 
 ---
 
@@ -440,11 +440,53 @@ cat config/orchestrator.json
 
 ---
 
+## 當前進度 (2026-03-22)
+
+### ✅ 已完成
+
+1. **Gemini CLI 修復**
+   - Node.js v24.14.0 安裝完成
+   - Gemini CLI 現在可以正常使用
+
+2. **CRAG 無限循環問題修復**
+   - 移除 `SYSTEM_REMINDER_PROMPT` 的 "DO NOT STOP"
+   - 添加 `MAX_TOOL_CALLS = 20` 限制
+   - 成功測試 ONNX Runtime（11 次調用後停止）
+
+3. **HybridScheduler 設計與實現**
+   - 結合 TraceManager + StateMachineScheduler 的優點
+   - 實現基礎版本（優先級隊列、強制答案機制、深度追蹤）
+   - 位置：`codebase_rag/services/hybrid_scheduler.py`
+
+4. **RTL8852BU WiFi 驅動測試（進行中）**
+   - ✅ Gemini 答案已完成（詳細的 Station 連線流程分析）
+   - ⏳ CRAG RAG 索引進行中（--lightweight 模式，從 2026-03-22 00:07 開始）
+   - ⏳ CRAG Chat 測試等待中
+
+### 🔍 發現的設計問題
+
+**問題 #1: Agent 無法在 Timeout 內返回答案**
+- 即使問題具體，Agent 仍會無限搜尋不停止
+- 已記錄並設計 HybridScheduler 解決方案
+- 狀態：HybridScheduler MVP 已完成，待整合
+
+---
+
 ## 待辦事項
 
+### 高優先級
+- [ ] 完成 RTL8852BU 困難問題測試（進行中）
+- [ ] 整合 HybridScheduler 到主流程
+- [ ] 驗證 HybridScheduler 在大型專案上的性能
+
+### 中優先級
 - [ ] 正式 Data-Flow Pass (從 regex/heuristic 到 reaching-definitions)
 - [ ] Producer-Consumer Queue Tracing (enqueue → thread worker)
 - [ ] 測試更多邊緣案例
+
+### 低優先級
+- [ ] 添加更多語言技能（如 Zig、Kotlin）
+- [ ] 優化 UI/UX
 
 ---
 
@@ -462,3 +504,7 @@ cat config/orchestrator.json
 | 2026-02-21 | 0.3 | Phase 3.8 循環檢測 |
 | 2026-02-17 | 0.2 | Phase 3 Multi-Agent 架構 |
 | 2026-02-01 | 0.1 | Phase 1 Foundation |
+| 2026-03-21 | 1.1 | 修復無限循環問題 - 添加 MAX_TOOL_CALLS 限制 |
+| 2026-03-21 | 1.2 | 設計 HybridScheduler 結合 TraceManager 和 StateMachineScheduler |
+| 2026-03-22 | 1.3 | 實現 HybridScheduler MVP - 優先級隊列 + 強制答案機制 |
+| 2026-03-22 | 1.4 | 進行 RTL8852BU WiFi Station 連線流程困難問題測試 (進行中) |
