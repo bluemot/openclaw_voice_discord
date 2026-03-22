@@ -1,0 +1,14 @@
+{
+  "channels": {
+    "1481223673519280211": {
+      "name": "語音助手-接上discord",
+      "input": "voice",
+      "output": "voice"
+    },
+    "1482401200384114933": {
+      "name": "語擦-app",
+      "input": "voice",
+      "output": "voice"
+    }
+  }
+}

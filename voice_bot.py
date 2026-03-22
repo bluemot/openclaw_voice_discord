@@ -1,0 +1,411 @@
+#!/usr/bin/env python3
+"""
+Voice Bot - 動態多頻道語音助手
+
+功能：
+- 可加入多個 Discord 頻道
+- 每個頻道可獨立設定輸入/輸出模式
+- GPU STT + GPU TTS
+
+流程：
+1. 收到語音 → GPU STT 轉文字 → 發到頻道
+2. 偵測到 @CosBot 💬 → GPU TTS 轉語音 → 播放
+
+Usage:
+    export DISCORD_BOT_TOKEN="你的token"
+    python3 voice_bot.py
+"""
+
+import os
+import json
+import asyncio
+import discord
+from discord.ext import commands
+import tempfile
+import subprocess
+from openai import OpenAI
+import ollama
+from gtts import gTTS
+
+# ============ 設定 ============
+CONFIG_FILE = "voice_channel_config.json"
+JARVIS_USER_ID = "931691223989772308"  # Jarvis (Tom) 的 Discord user ID
+
+# GPU 伺服器設定
+HOST_IP = "192.168.122.1"
+gpu_client = OpenAI(
+    api_key="dummy-key-not-used",
+    base_url=f"http://{HOST_IP}:8000/v1"
+)
+
+intents = discord.Intents.default()
+intents.message_content = True
+intents.guild_messages = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# 語音客戶端
+connected_voice_clients = {}
+
+# ============ GPU STT/TTS 函式 ============
+def transcribe_via_gpu(audio_path):
+    """使用 GPU 做 STT"""
+    print(f"[GPU-STT] 檢查音檔: {audio_path}")
+    if not os.path.exists(audio_path):
+        print("[GPU-STT] 錯誤：檔案不存在")
+        return ""
+    
+    print("[GPU-STT] 上傳到 GPU 處理...")
+    try:
+        with open(audio_path, "rb") as f:
+            response = gpu_client.audio.transcriptions.create(
+                model="Systran/faster-whisper-medium",
+                file=f,
+                language="zh",
+                temperature=0.0
+            )
+        print(f"[GPU-STT] 成功: {response.text}")
+        return response.text
+    except Exception as e:
+        print(f"[GPU-STT] 錯誤: {e}")
+        return ""
+
+def generate_voice_via_gpu(text, output_filename=None):
+    """使用 GPU 做 TTS"""
+    if not text.strip():
+        print("[GPU-TTS] 錯誤：無文字內容")
+        return None
+    
+    if output_filename is None:
+        output_filename = tempfile.mktemp(suffix=".mp3")
+    
+    print(f"[GPU-TTS] 生成語音: {text[:50]}...")
+    try:
+        response = gpu_client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=text,
+            response_format="mp3"
+        )
+        response.stream_to_file(output_filename)
+        print(f"[GPU-TTS] 成功: {output_filename}")
+        return output_filename
+    except Exception as e:
+        print(f"[GPU-TTS] 錯誤: {e}")
+        return None
+
+# ============ 設定管理 ============
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return {"channels": {}}
+    return {"channels": {}}
+
+def save_config(config):
+    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+def set_channel_config(channel_id, name, input_mode, output_mode):
+    config = load_config()
+    config["channels"][str(channel_id)] = {
+        "name": name,
+        "input": input_mode,
+        "output": output_mode
+    }
+    save_config(config)
+    return config["channels"][str(channel_id)]
+
+def remove_channel_config(channel_id):
+    config = load_config()
+    channel_id = str(channel_id)
+    if channel_id in config["channels"]:
+        del config["channels"][channel_id]
+        save_config(config)
+        return True
+    return False
+
+def get_channel_config(channel_id):
+    config = load_config()
+    return config["channels"].get(str(channel_id))
+
+def is_audio(filename):
+    audio_exts = ['.mp3', '.wav', '.m4a', '.ogg', '.mov', '.mp4']
+    return any(filename.lower().endswith(ext) for ext in audio_exts)
+
+# ============ 語音播放 ============
+async def play_audio_file(audio_path, voice_client):
+    """播放音訊檔案到語音頻道"""
+    if not voice_client or not voice_client.is_connected():
+        return False
+    
+    try:
+        # 等待當前播放完畢
+        while voice_client.is_playing():
+            await asyncio.sleep(0.1)
+        
+        # 播放
+        source = discord.FFmpegPCMAudio(audio_path)
+        voice_client.play(source)
+        
+        # 等待播放完畢
+        while voice_client.is_playing():
+            await asyncio.sleep(0.1)
+        
+        return True
+    except Exception as e:
+        print(f"[播放錯誤] {e}")
+        return False
+
+async def play_tts(text, voice_client):
+    """播放 TTS 語音到語音頻道（使用 GPU）"""
+    if not voice_client or not voice_client.is_connected():
+        return
+    
+    try:
+        # 使用 GPU TTS
+        tts_file = generate_voice_via_gpu(text)
+        
+        if tts_file and os.path.exists(tts_file):
+            await play_audio_file(tts_file, voice_client)
+            os.remove(tts_file)
+        else:
+            # fallback 到 gTTS
+            tts_file = tempfile.mktemp(suffix=".mp3")
+            tts = gTTS(text=text[:500], lang='zh-tw')
+            tts.save(tts_file)
+            await play_audio_file(tts_file, voice_client)
+            os.remove(tts_file)
+        
+    except Exception as e:
+        print(f"[TTS Play Error] {e}")
+
+async def play_tts_to_channel(text, channel_id):
+    """發送 TTS 到文字頻道（使用 GPU）"""
+    channel = bot.get_channel(channel_id)
+    if not channel:
+        return
+    
+    try:
+        # 使用 GPU TTS
+        tts_file = generate_voice_via_gpu(text)
+        
+        if tts_file and os.path.exists(tts_file):
+            await channel.send(file=discord.File(tts_file))
+            os.remove(tts_file)
+        else:
+            # fallback 到 gTTS
+            tts_file = tempfile.mktemp(suffix=".mp3")
+            tts = gTTS(text=text[:500], lang='zh-tw')
+            tts.save(tts_file)
+            await channel.send(file=discord.File(tts_file))
+            os.remove(tts_file)
+    except Exception as e:
+        print(f"[TTS Send Error] {e}")
+
+# ============ STT 處理 ============
+async def process_speech_to_text(audio_path, text_channel, user):
+    """語音轉文字，發送到頻道"""
+    try:
+        # 使用 GPU STT
+        transcript = transcribe_via_gpu(audio_path)
+        
+        if not transcript:
+            await text_channel.send("❌ 沒有偵測到語音內容")
+            return
+        
+        user_name = user.name if user else "使用者"
+        
+        # 發送轉錄文字到頻道
+        await text_channel.send(
+            f"📝 **{user_name}** 說：\n> {transcript}\n\n"
+            f"_Jarvis 正在回覆中..._"
+        )
+        
+        print(f"[STT] {user_name}: {transcript}")
+        
+    except Exception as e:
+        print(f"[STT Error] {e}")
+        await text_channel.send(f"❌ STT 處理失敗: {e}")
+
+# ============ 訊息監控 ============
+voice_bot_messages = set()  # message_ids
+
+@bot.event
+async def on_message(message):
+    """處理訊息"""
+    global voice_bot_messages
+    
+    # 忽略自己的訊息
+    if message.author == bot.user:
+        voice_bot_messages.add(message.id)
+        if len(voice_bot_messages) > 100:
+            voice_bot_messages = set(list(voice_bot_messages)[-50:])
+        return
+    
+    # 檢查是否為設定的頻道
+    config = get_channel_config(message.channel.id)
+    if not config:
+        await bot.process_commands(message)
+        return
+    
+    # 處理 !voice 指令
+    if message.content.startswith('!voice'):
+        await bot.process_commands(message)
+        return
+    
+    # ========== 語音輸入處理 ==========
+    if config['input'] == 'voice':
+        if message.attachments:
+            for attachment in message.attachments:
+                if is_audio(attachment.filename):
+                    await message.channel.send("🎙️ 收到語音，轉換文字中...")
+                    
+                    # 下載
+                    temp_dir = tempfile.mkdtemp()
+                    audio_path = os.path.join(temp_dir, attachment.filename)
+                    await attachment.save(audio_path)
+                    
+                    # 轉換
+                    wav_path = os.path.join(temp_dir, "audio.wav")
+                    subprocess.run(
+                        f'ffmpeg -i "{audio_path}" -ar 16000 -ac 1 "{wav_path}" -y 2>/dev/null',
+                        shell=True
+                    )
+                    
+                    if os.path.exists(wav_path):
+                        await process_speech_to_text(wav_path, message.channel, message.author)
+                    
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                    break
+    
+    # ========== 偵測需要語音回覆 ==========
+    if bot.user in message.mentions:
+        text = message.content.replace(f'<@{bot.user.id}>', '').strip()
+        
+        # 檢查是否為語音回覆請求（包含 💬 標記）
+        if text.startswith('💬'):
+            clean_text = text[1:].strip()
+            print(f"[語音回覆請求] {clean_text[:100]}...")
+            
+            voice_client = connected_voice_clients.get(message.guild.id)
+            if voice_client and voice_client.is_connected():
+                await message.channel.send("🔊 播放語音回覆...")
+                await play_tts(clean_text, voice_client)
+            else:
+                await message.channel.send("🔊")
+                await play_tts_to_channel(clean_text, message.channel.id)
+    
+    await bot.process_commands(message)
+
+# ============ 語音頻道連接 ============
+@bot.command(name='join')
+async def join_voice(ctx):
+    """加入語音頻道"""
+    if not ctx.author.voice:
+        await ctx.send("❌ 請先加入語音頻道")
+        return
+    
+    voice_state = ctx.author.voice
+    channel = voice_state.channel
+    
+    try:
+        voice_client = await channel.connect()
+        connected_voice_clients[ctx.guild.id] = voice_client
+        await ctx.send(f"✅ 已連接到 **{channel.name}** 語音頻道")
+    except Exception as e:
+        await ctx.send(f"❌ 連接失敗: {e}")
+
+@bot.command(name='leave')
+async def leave_voice(ctx):
+    """離開語音頻道"""
+    guild_id = ctx.guild.id
+    if guild_id in connected_voice_clients:
+        await connected_voice_clients[guild_id].disconnect()
+        del connected_voice_clients[guild_id]
+        await ctx.send("👋 已離開語音頻道")
+    else:
+        await ctx.send("❌ 沒有連接到任何語音頻道")
+
+# ============ 設定指令 ============
+@bot.command(name='voice')
+async def voice_cmd(ctx, action=None, channel_id=None, input_mode=None, output_mode=None):
+    """頻道設定指令"""
+    
+    if action is None or action == 'help':
+        embed = discord.Embed(
+            title="🎙️ Voice Bot 指令",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="設定頻道", value="`!voice add 頻道ID 輸入 輸出`", inline=False)
+        embed.add_field(name="範例", value="`!voice add 1481223673519280211 voice voice`", inline=False)
+        embed.add_field(name="加入語音", value="`!join` - 加入語音頻道", inline=False)
+        embed.add_field(name="離開語音", value="`!leave` - 離開語音頻道", inline=False)
+        await ctx.send(embed=embed)
+        return
+    
+    if action == 'add':
+        if not channel_id or not input_mode or not output_mode:
+            await ctx.send("❌ 請提供完整參數：`!voice add 頻道ID 輸入 輸出`")
+            return
+        
+        if input_mode not in ['voice', 'text'] or output_mode not in ['voice', 'text']:
+            await ctx.send("❌ 模式錯誤：請使用 `voice` 或 `text`")
+            return
+        
+        channel = ctx.guild.get_channel(int(channel_id))
+        if not channel:
+            await ctx.send(f"❌ 找不到頻道 ID：{channel_id}")
+            return
+        
+        set_channel_config(channel.id, channel.name, input_mode, output_mode)
+        await ctx.send(f"✅ 已設定 **{channel.name}**\n📥 {input_mode} → 📤 {output_mode}")
+        
+    elif action == 'remove':
+        if not channel_id:
+            await ctx.send("❌ 請提供頻道 ID")
+            return
+        
+        if remove_channel_config(int(channel_id)):
+            await ctx.send("✅ 已移除")
+        else:
+            await ctx.send("❌ 該頻道沒有設定")
+            
+    elif action == 'list':
+        config = load_config()
+        channels = config.get("channels", {})
+        
+        if not channels:
+            await ctx.send("📋 沒有設定任何頻道")
+            return
+        
+        text = "**📋 頻道設定：**\n"
+        for ch_id, ch in channels.items():
+            text += f"#{ch['name']}: {ch['input']} → {ch['output']}\n"
+        await ctx.send(text)
+
+# ============ 啟動 ============
+@bot.event
+async def on_ready():
+    print(f"✅ Voice Bot 已登入: {bot.user}")
+    print(f"🎯 Jarvis User ID: {JARVIS_USER_ID}")
+    print(f"🌐 GPU 伺服器: {HOST_IP}:8000")
+    print(f"📝 STT 模型: Systran/faster-whisper-medium")
+    print(f"🔊 TTS 模型: tts-1 (alloy)")
+    print("\n📋 指令：")
+    print("  !voice add 頻道ID 輸入 輸出  - 設定頻道")
+    print("  !voice list                    - 列出頻道")
+    print("  !join                          - 加入語音頻道")
+    print("  !leave                         - 離開語音頻道")
+
+if __name__ == "__main__":
+    token = os.getenv("DISCORD_BOT_TOKEN")
+    if not token:
+        print("❌ 請設定 DISCORD_BOT_TOKEN")
+        exit(1)
+    
+    print("🚀 啟動 Voice Bot...")
+    bot.run(token)
