@@ -1,14 +1,32 @@
 # Voice Assistant 開發進度
 
-## 📅 2026-03-23
+## 📅 2026-03-23 (今日)
 
 ### ✅ 已完成
 
 - [x] CosBot (Voice Bot) 多頻道版本完成
-- [x] 使用 GPU STT (Systran/faster-whisper-medium)
+- [x] 使用 GPU STT (deepdml/faster-whisper-large-v3-turbo-ct2)
 - [x] 使用 GPU TTS (tts-1 alloy)
 - [x] 動態頻道設定系統
 - [x] @CosBot 💬 標記觸發語音回覆
+- [x] Context Prompt 技術術語增強
+
+### 🔧 Context Prompt 術語庫
+
+```
+AI 機器人：CosBot、Jarvis
+軟體平台：Discord、OpenClaw、Telegram
+語音技術：STT、TTS
+版本控制：GitHub、git、pull、push、clone、commit、branch、switch、stash、merge、rebase、fetch、diff
+Discord 術語：channel、頻道、server、guild、role、permission
+AI/ML：Whisper、Ollama、GPT、Claude、LLaMA、faster-whisper、large-v3-turbo、Gemini
+AI 工具：gemini、CLI、llm、session、model、prompt、temperature、token
+硬體：GPU、CPU、VRAM
+API相關：token、key、endpoint、base_url、webhook、API、REST
+程式框架：Python、JavaScript、Node.js、React
+系統指令：update、install、download、upload、restart、debug、log、run、execute、build、exec、shell、bash、command、script、process
+其他：config、setting、workspace、directory、path、file、folder、memory
+```
 
 ### 🔧 目前架構
 
@@ -17,8 +35,8 @@
 │  CosBot (Voice Bot) #6388                             │
 ├─────────────────────────────────────────────────────────┤
 │  STT: GPU (192.168.122.1:8000)                        │
-│  - Model: Systran/faster-whisper-medium               │
-│  - 比 local faster-whisper 準確很多                    │
+│  - Model: deepdml/faster-whisper-large-v3-turbo-ct2  │
+│  - Context Prompt: 技術術語增強                         │
 │                                                         │
 │  TTS: GPU (192.168.122.1:8000)                        │
 │  - Model: tts-1 (alloy)                               │
@@ -31,16 +49,16 @@
 | 頻道 ID | 名稱 | 模式 |
 |---------|------|------|
 | 1481223673519280211 | 語音助手-接上discord | voice → voice |
-| 1482401200384114933 | 語擦-app | voice → voice |
 
 ### 🎯 使用流程
 
 1. 上傳語音 → CosBot GPU STT 轉文字
 2. @CosBot 💬 回覆內容 → CosBot GPU TTS 播放
 
-### 📋 檔案
+### ⚠️ 已知限制
 
-- `voice_bot.py` - CosBot 主程式
+- STT 辨識精準度對某些詞彙仍有限制（已用 Context Prompt 改善）
+- Bot 需要被 @ 才能觸發語音回覆
 
 ---
 
@@ -50,29 +68,17 @@
 
 - [x] 建立專案目錄結構
 - [x] 完成 STT → LLM → TTS 完整流程
-- [x] 多頻道自動處理 Bot (multi_channel_voice_bot.py)
+- [x] 多頻道自動處理 Bot
 - [x] Discord 頻道正常運作
 - [x] GitHub repo 建立
 
-### 🔧 Bot 版本
+### 🔧 Bot 版本演進
 
-| 檔案 | 說明 |
+| 版本 | 說明 |
 |-----|------|
-| `voice_bot.py` | **最新版本** - GPU STT/TTS + 多頻道 |
+| `voice_bot.py` | **最終版本** - GPU STT/TTS + Context Prompt |
 | `multi_channel_voice_bot.py` | 多頻道版本 |
 | `smart_voice_bot.py` | 智能狀態管理版本 |
-
-### ⚠️ 已知限制
-
-- Bot 無法主動監聽所有頻道（Discord 限制）
-- 語音頻道即時對話尚未穩定
-- 目前採用的方案：文字頻道傳語音檔 → 處理 → 回傳語音
-
-### 📋 待辦
-
-- [ ] 加入對話歷史記憶
-- [ ] 支援更多語言
-- [ ] 優化回應延遲
 
 ---
 
