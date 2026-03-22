@@ -1,0 +1,5 @@
+Explain RTL8852BU WiFi driver station connection flow: from upper layer connection request, through channel switching, to authentication completion. Include:
+1. File paths and function names
+2. Hardware register operations
+3. Firmware H2C commands
+4. Channel switching mechanism
