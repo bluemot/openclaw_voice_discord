@@ -56,13 +56,43 @@ def transcribe_via_gpu(audio_path):
         return ""
     
     print("[GPU-STT] 上傳到 GPU 處理...")
+    
+    # 上下文提示詞，幫助辨識專有名詞
+    context_prompt = """以下是技術相關術語，請根據發音轉換：
+    
+    AI 機器人：CosBot、Jarvis
+    
+    軟體平台：Discord、OpenClaw、Telegram
+    
+    語音技術：STT、TTS
+    
+    版本控制：GitHub、git、pull、push、clone、commit、branch、switch、stash、merge、rebase、fetch、diff
+    
+    Discord 術語：channel、頻道、server、guild、role、permission
+    
+    AI/ML：Whisper、Ollama、GPT、Claude、LLaMA、faster-whisper、large-v3-turbo、Gemini、LLaMA
+    
+    AI 工具：gemini、CLI、llm、session、model、prompt、temperature、token
+    
+    硬體：GPU、CPU、VRAM
+    
+    API相關：token、key、endpoint、base_url、webhook、API、REST
+    
+    程式框架：Python、JavaScript、Node.js、React
+    
+    系統指令：update、install、download、upload、restart、debug、log、run、execute、build、exec、shell、bash、command、script、process
+    
+    其他：config、setting、workspace、directory、path、file、folder、memory"""
+    
+    
     try:
         with open(audio_path, "rb") as f:
             response = gpu_client.audio.transcriptions.create(
-                model="Systran/faster-whisper-medium",
+                model="deepdml/faster-whisper-large-v3-turbo-ct2",
                 file=f,
                 language="zh",
-                temperature=0.0
+                temperature=0.0,
+                prompt=context_prompt  # 加入上下文提示
             )
         print(f"[GPU-STT] 成功: {response.text}")
         return response.text
@@ -393,7 +423,7 @@ async def on_ready():
     print(f"✅ Voice Bot 已登入: {bot.user}")
     print(f"🎯 Jarvis User ID: {JARVIS_USER_ID}")
     print(f"🌐 GPU 伺服器: {HOST_IP}:8000")
-    print(f"📝 STT 模型: Systran/faster-whisper-medium")
+    print(f"📝 STT 模型: deepdml/faster-whisper-large-v3-turbo-ct2")
     print(f"🔊 TTS 模型: tts-1 (alloy)")
     print("\n📋 指令：")
     print("  !voice add 頻道ID 輸入 輸出  - 設定頻道")

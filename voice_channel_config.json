@@ -9,6 +9,11 @@
       "name": "語擦-app",
       "input": "voice",
       "output": "voice"
+    },
+    "1477323611843858475": {
+      "name": "crag",
+      "input": "voice",
+      "output": "text"
     }
   }
 }
