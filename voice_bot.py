@@ -26,6 +26,9 @@ import subprocess
 from openai import OpenAI
 import ollama
 from gtts import gTTS
+import torch
+import numpy as np
+import soundfile as sf
 
 # ============ 設定 ============
 CONFIG_FILE = "voice_channel_config.json"
@@ -37,6 +40,89 @@ gpu_client = OpenAI(
     api_key="dummy-key-not-used",
     base_url=f"http://{HOST_IP}:8000/v1"
 )
+
+# Silero VAD 模型
+vad_model = None
+
+def load_vad_model():
+    """載入 Silero VAD 模型"""
+    global vad_model
+    if vad_model is None:
+        print("[VAD] 載入 Silero VAD 模型...")
+        try:
+            vad_model, utils = torch.hub.load(
+                'snakers4/silero-vad', 
+                'silero_vad', 
+                onnx=False,
+                trust_repo=True
+            )
+            print("[VAD] Silero VAD 模型載入成功!")
+        except Exception as e:
+            print(f"[VAD] 載入失敗: {e}")
+            vad_model = None
+    return vad_model
+
+def denoise_audio(audio_path):
+    """使用 Silero VAD 去除非語音片段"""
+    model = load_vad_model()
+    if model is None:
+        print("[VAD] VAD 模型未載入，返回原始音檔")
+        return audio_path
+    
+    print("[VAD] 處理降噪...")
+    try:
+        # 讀取音訊
+        wav, sr = sf.read(audio_path)
+        
+        # 轉換為單聲道如果需要
+        if len(wav.shape) > 1:
+            wav = wav.mean(axis=1)
+        
+        # 確保是 float32
+        wav = wav.astype(np.float32)
+        
+        # 標準化
+        if wav.max() > 1.0:
+            wav = wav / 32768.0
+        
+        wav_tensor = torch.from_numpy(wav).float()
+        
+        # 取得每個片段的語音機率
+        chunk_size = 512  # 32ms at 16kHz
+        speech_probs = []
+        
+        for i in range(0, len(wav_tensor), chunk_size):
+            chunk = wav_tensor[i:i+chunk_size]
+            if len(chunk) == chunk_size:
+                with torch.no_grad():
+                    prob = model(chunk.unsqueeze(0), 16000).item()
+                speech_probs.append(prob)
+            else:
+                speech_probs.append(0.0)
+        
+        # 找出語音片段（機率 > 0.5）
+        threshold = 0.5
+        speech_chunks = []
+        for i, prob in enumerate(speech_probs):
+            if prob > threshold:
+                speech_chunks.append(wav_tensor[i*chunk_size:(i+1)*chunk_size])
+        
+        if not speech_chunks:
+            print("[VAD] 未偵測到語音，返回原始音檔")
+            return audio_path
+        
+        # 合併語音片段
+        speech = torch.cat(speech_chunks)
+        
+        # 寫入新檔案
+        denoised_path = audio_path.replace('.wav', '_denoised.wav')
+        sf.write(denoised_path, speech.numpy(), 16000)
+        print(f"[VAD] 降噪完成: {len(speech_chunks)} 片段")
+        return denoised_path
+        
+    except Exception as e:
+        print(f"[VAD] 降噪錯誤: {e}")
+        return audio_path
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -92,7 +178,12 @@ def transcribe_via_gpu(audio_path):
                 file=f,
                 language="zh",
                 temperature=0.0,
-                prompt=context_prompt  # 加入上下文提示
+                prompt=context_prompt,
+                extra_body={
+                    "vad_filter": True,
+                    "condition_on_previous_text": False,
+                    "no_speech_threshold": 0.6
+                }
             )
         print(f"[GPU-STT] 成功: {response.text}")
         return response.text
@@ -239,7 +330,7 @@ async def play_tts_to_channel(text, channel_id):
 async def process_speech_to_text(audio_path, text_channel, user):
     """語音轉文字，發送到頻道"""
     try:
-        # 使用 GPU STT
+        # 直接使用 GPU STT（GPU 端已有 VAD）
         transcript = transcribe_via_gpu(audio_path)
         
         if not transcript:
@@ -370,11 +461,28 @@ async def voice_cmd(ctx, action=None, channel_id=None, input_mode=None, output_m
             title="🎙️ Voice Bot 指令",
             color=discord.Color.blue()
         )
+        embed.add_field(name="設定目前頻道", value="`!voice here 輸入 輸出`", inline=False)
+        embed.add_field(name="範例", value="`!voice here voice voice`", inline=False)
         embed.add_field(name="設定頻道", value="`!voice add 頻道ID 輸入 輸出`", inline=False)
-        embed.add_field(name="範例", value="`!voice add 1481223673519280211 voice voice`", inline=False)
         embed.add_field(name="加入語音", value="`!join` - 加入語音頻道", inline=False)
         embed.add_field(name="離開語音", value="`!leave` - 離開語音頻道", inline=False)
         await ctx.send(embed=embed)
+        return
+    
+    # !voice here voice text - 快速設定目前頻道
+    if action == 'here':
+        if not input_mode or not output_mode:
+            await ctx.send("❌ 請提供模式：`!voice here 輸入 輸出`")
+            return
+        
+        if input_mode not in ['voice', 'text'] or output_mode not in ['voice', 'text']:
+            await ctx.send("❌ 模式錯誤：請使用 `voice` 或 `text`")
+            return
+        
+        # 使用目前頻道
+        current_channel_id = ctx.channel.id
+        set_channel_config(current_channel_id, ctx.channel.name, input_mode, output_mode)
+        await ctx.send(f"✅ 已設定 **{ctx.channel.name}**\n📥 {input_mode} → 📤 {output_mode}")
         return
     
     if action == 'add':
