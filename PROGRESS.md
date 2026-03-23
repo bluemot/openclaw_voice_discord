@@ -28,6 +28,24 @@ API相關：token、key、endpoint、base_url、webhook、API、REST
 其他：config、setting、workspace、directory、path、file、folder、memory
 ```
 
+### 🔧 VAD Filter 參數（車上降噪關鍵）
+
+```python
+extra_body={
+    "vad_filter": True,                      # 啟用語音活動偵測
+    "condition_on_previous_text": False,     # 防止幻覺循環
+    "no_speech_threshold": 0.6              # 提高無語音門檻
+}
+```
+
+| 參數 | 功能 | 效果 |
+|-----|------|------|
+| `vad_filter: True` | 語音活動偵測 | 剪掉純引擎聲、冷氣聲等沒有人聲的片段 |
+| `condition_on_previous_text: False` | 關閉前文依賴 | 防止「階段階段階段...」的幻覺循環 |
+| `no_speech_threshold: 0.6` | 提高無語音門檻 | 不夠確定的聲音直接當靜音處理 |
+
+> 🚗 **車上錄音測試結果：非常成功！** VAD filter 大幅改善了車內噪音環境的語音辨識品質。
+
 ### 🔧 目前架構
 
 ```
