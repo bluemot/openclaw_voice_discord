@@ -24,8 +24,9 @@ Code-Graph RAG for code understanding.
 - **Channel Name**: `#crag`
 - **Chat ID**: `channel:1477323611843858475`
 - **Platform**: `discord`
-- **Location**: `/home/ubuntu/workspace/crag/`
-- **Documentation**: `README.md`, `PROGRESS_GLOBAL.md`
+- **Location**: `/home/ubuntu/.openclaw/workspace/crag`
+- **Documentation**: `README.md`, `PROGRESS.md` (完整進度), `CragProjectStatus.md`
+- **Current Issue**: LLM 持續嘗試调用已移除的工具，見 `PROGRESS.md`
 
 ---
 
@@ -61,19 +62,37 @@ Policy and configuration management for OpenClaw.
 - **Chat ID**: `channel:1482401200384114933`
 - **Platform**: `discord`
 - **Location**: `/home/ubuntu/.openclaw/workspace/llm-cos-fun/`
-- **Documentation**: `README.md`, `docs/AICOS_PROGRESS.md`
+- **Documentation**: `README.md`, `PROGRESS.md` (完整進度)
+
 
 ---
 
-## Adding New Projects
+## Voice Assistant
 
-1. Create `README.md` or `PROJECT.md` in the project directory
-2. Copy the template below and fill in the details
-3. Add the new section above
+Discord 語音助手，透過上傳語音檔案與 AI (Jarvis) 對話。
 
-### Template
+- **Channel Name**: `#語音助手-接上discord`
+- **Chat ID**: `channel:1481223673519280211`
+- **Platform**: `discord`
+- **Location**: `/home/ubuntu/.openclaw/workspace/voice_assistant/`
+- **Documentation**: `README.md`, `PROGRESS.md`
+- **GitHub**: https://github.com/bluemot/openclaw_voice_discord
 
-```markdown
+## sak-editor
+
+Modern cross-platform text editor with large file handling, LLM integration, and SFTP remote file support.
+
+- **Channel Name**: `#sak-note`
+- **Chat ID**: `channel:1481721466335531110`
+- **Platform**: `discord`
+- **Location**: `/home/ubuntu/.openclaw/workspace/sak-editor/`
+- **Documentation**: `PROGRESS.md` (完整進度), `README.md`
+- **GitHub**: https://github.com/bluemot/sak-note.git
+- **Tech Stack**: Tauri 2.x (Rust) + React + Monaco Editor + VFS
+- **Current Status**: VFS 架構完成，SFTP backend 整合中
+
+---
+
 ## Project Name
 
 Brief description of the project.

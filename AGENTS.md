@@ -55,7 +55,7 @@
 ONLY modify the code. DO NOT run any tests, DO NOT run make, and DO NOT execute any shell commands.
 ```
 
-- Simple: `gemini "prompt"`
+- Simple: `gemini -m gemini-3.1-pro-preview "prompt"`
 - Complex: `nohup` or background
 - After: `py_compile` verify
 
@@ -64,9 +64,10 @@ ONLY modify the code. DO NOT run any tests, DO NOT run make, and DO NOT execute 
 Gemini CLI can spawn subagents for complex tasks:
 
 ```bash
-gemini -p "Please $do_somethings, please record what you have done in $the_project_record.md" --yolo
+gemini -m gemini-3.1-pro-preview -p "Please $do_somethings, please record what you have done in $the_project_record.md" --yolo
 ```
 
+- `-m <model>`: Specify model (e.g., `gemini-3.1-pro-preview`)
 - `-p` or `--prompt`: Task description
 - `--yolo`: Auto-apply changes without confirmation
 - Record progress in project documentation files

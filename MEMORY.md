@@ -13,5 +13,9 @@
 
 ## 專案索引
 - **llm-cos-fun**: `/home/ubuntu/.openclaw/workspace/llm-cos-fun/` — LLM 角色扮演專案（主持：希泉）
+  - 進度記錄：`PROGRESS.md`
+  - 最新功能：Context Compression (15%/45% FIFO)、Trust Level 起始值優化、AJAX 聊天
 - **stock_crawler**: `/home/ubuntu/.openclaw/workspace/stock_crawler/` — 記憶在 `PROGRESS.md`
-- **codebase_rag**: `/home/ubuntu/workspace/crag/` — 記憶在 `memory/CRAG_PROGRESS.md`
+- **codebase_rag**: `/home/ubuntu/workspace/crag/` — 完整進度記錄在 `/home/ubuntu/workspace/crag/PROGRESS.md`
+  - 現正解決：LLM 持續嘗試调用已移除的工具 (`global_text_search`)，懷疑是模型固有行為
+  - Symlink 已設定：`/home/ubuntu/.openclaw/workspace/crag -> /home/ubuntu/workspace/crag`
