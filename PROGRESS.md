@@ -1,6 +1,34 @@
 # Voice Assistant 開發進度
 
-## 📅 2026-03-23 (今日)
+## 📅 2026-03-24 (今日)
+
+### ✅ 已完成
+
+- [x] `!voice here` 指令 bug 修復（參數解析問題）
+- [x] Context Prompt 新增 `code`、`coding` 術語
+- [x] Bot 重啟正常運作
+
+### 🔧 指令格式（已修復）
+
+```
+!voice here 輸入 輸出    - 設定目前頻道（例：!voice here voice text）
+!voice list              - 列出所有設定
+```
+
+### ⚠️ 待處理
+
+- [ ] GPU TTS 模型問題（server 預設為 Kokoro，client 需更新支援）
+- [ ] 備註：目前 TTS 使用 gTTS fallback
+
+### 📋 Git Commit
+
+```
+[main bc70cd8] feat: add code and coding to STT context prompt
+```
+
+---
+
+## 📅 2026-03-23
 
 ### ✅ 已完成
 
@@ -30,7 +58,7 @@ AI 機器人：CosBot、Jarvis
 語音技術：STT、TTS
 版本控制：GitHub、git、pull、push、clone、commit、branch、switch
 Discord 術語：channel、頻道、server、guild
-AI 工具：gemini、CLI、llm、session、model、prompt
+AI 工具：gemini、CLI、llm、session、model、prompt、code、coding
 系統指令：exec、shell、bash、command、script
 ```
 
