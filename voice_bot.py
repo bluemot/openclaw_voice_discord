@@ -158,7 +158,7 @@ def transcribe_via_gpu(audio_path):
     
     AI/ML：Whisper、Ollama、GPT、Claude、LLaMA、faster-whisper、large-v3-turbo、Gemini、LLaMA
     
-    AI 工具：gemini、CLI、llm、session、model、prompt、temperature、token
+    AI 工具：gemini、CLI、llm、session、model、prompt、temperature、token、code、coding
     
     硬體：GPU、CPU、VRAM
     
