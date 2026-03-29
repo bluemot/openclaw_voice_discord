@@ -36,9 +36,19 @@ JARVIS_USER_ID = "931691223989772308"  # Jarvis (Tom) 的 Discord user ID
 
 # GPU 伺服器設定
 HOST_IP = "192.168.122.1"
-gpu_client = OpenAI(
+STT_PORT = "8000"
+TTS_PORT = "8080"
+
+# STT client (port 8000)
+stt_client = OpenAI(
     api_key="dummy-key-not-used",
-    base_url=f"http://{HOST_IP}:8000/v1"
+    base_url=f"http://{HOST_IP}:{STT_PORT}/v1"
+)
+
+# TTS client (port 8080)
+tts_client = OpenAI(
+    api_key="dummy-key-not-used",
+    base_url=f"http://{HOST_IP}:{TTS_PORT}/v1"
 )
 
 # Silero VAD 模型
@@ -173,7 +183,7 @@ def transcribe_via_gpu(audio_path):
     
     try:
         with open(audio_path, "rb") as f:
-            response = gpu_client.audio.transcriptions.create(
+            response = stt_client.audio.transcriptions.create(
                 model="deepdml/faster-whisper-large-v3-turbo-ct2",
                 file=f,
                 language="zh",
@@ -191,8 +201,8 @@ def transcribe_via_gpu(audio_path):
         print(f"[GPU-STT] 錯誤: {e}")
         return ""
 
-def generate_voice_via_gpu(text, output_filename=None):
-    """使用 GPU 做 TTS"""
+def generate_voice_via_gpu(text, output_filename=None, voice="alloy", model="qwen3-tts"):
+    """使用 GPU 做 TTS (port 8080) - qwen3-tts 模型"""
     if not text.strip():
         print("[GPU-TTS] 錯誤：無文字內容")
         return None
@@ -201,12 +211,12 @@ def generate_voice_via_gpu(text, output_filename=None):
         output_filename = tempfile.mktemp(suffix=".mp3")
     
     print(f"[GPU-TTS] 生成語音: {text[:50]}...")
+    print(f"[GPU-TTS] 使用模型: {model}")
     try:
-        response = gpu_client.audio.speech.create(
-            model="tts-1",
-            voice="alloy",
-            input=text,
-            response_format="mp3"
+        response = tts_client.audio.speech.create(
+            model=model,
+            voice=voice,
+            input=text
         )
         response.stream_to_file(output_filename)
         print(f"[GPU-TTS] 成功: {output_filename}")
@@ -214,6 +224,25 @@ def generate_voice_via_gpu(text, output_filename=None):
     except Exception as e:
         print(f"[GPU-TTS] 錯誤: {e}")
         return None
+
+
+def test_tts_sample(text="你好，這是 CosBot 的測試語音。", voice="alloy"):
+    """測試 TTS 生成語音樣本"""
+    print(f"[TTS Test] 生成測試語音...")
+    print(f"[TTS Test] 文字: {text}")
+    print(f"[TTS Test] Voice: {voice}")
+    
+    output_file = "cosbot_tts_sample.mp3"
+    result = generate_voice_via_gpu(text, output_file, voice)
+    
+    if result:
+        import os
+        file_size = os.path.getsize(result)
+        print(f"[TTS Test] ✅ 成功！檔案: {result} ({file_size/1024:.1f} KB)")
+    else:
+        print("[TTS Test] ❌ 失敗")
+    
+    return result
 
 # ============ 設定管理 ============
 def load_config():
@@ -453,8 +482,15 @@ async def leave_voice(ctx):
 
 # ============ 設定指令 ============
 @bot.command(name='voice')
-async def voice_cmd(ctx, action=None, channel_id=None, input_mode=None, output_mode=None):
-    """頻道設定指令"""
+async def voice_cmd(ctx, action=None, *args):
+    """頻道設定指令
+    
+    用法：
+    !voice here 輸入 輸出    - 設定目前頻道
+    !voice add 頻道ID 輸入 輸出 - 設定其他頻道
+    !voice list              - 列出設定
+    !voice remove 頻道ID      - 移除設定
+    """
     
     if action is None or action == 'help':
         embed = discord.Embed(
@@ -462,7 +498,7 @@ async def voice_cmd(ctx, action=None, channel_id=None, input_mode=None, output_m
             color=discord.Color.blue()
         )
         embed.add_field(name="設定目前頻道", value="`!voice here 輸入 輸出`", inline=False)
-        embed.add_field(name="範例", value="`!voice here voice voice`", inline=False)
+        embed.add_field(name="範例", value="`!voice here voice text`", inline=False)
         embed.add_field(name="設定頻道", value="`!voice add 頻道ID 輸入 輸出`", inline=False)
         embed.add_field(name="加入語音", value="`!join` - 加入語音頻道", inline=False)
         embed.add_field(name="離開語音", value="`!leave` - 離開語音頻道", inline=False)
@@ -471,48 +507,52 @@ async def voice_cmd(ctx, action=None, channel_id=None, input_mode=None, output_m
     
     # !voice here voice text - 快速設定目前頻道
     if action == 'here':
-        if not input_mode or not output_mode:
+        if len(args) != 2:
             await ctx.send("❌ 請提供模式：`!voice here 輸入 輸出`")
             return
         
+        input_mode, output_mode = args
         if input_mode not in ['voice', 'text'] or output_mode not in ['voice', 'text']:
             await ctx.send("❌ 模式錯誤：請使用 `voice` 或 `text`")
             return
         
-        # 使用目前頻道
         current_channel_id = ctx.channel.id
         set_channel_config(current_channel_id, ctx.channel.name, input_mode, output_mode)
         await ctx.send(f"✅ 已設定 **{ctx.channel.name}**\n📥 {input_mode} → 📤 {output_mode}")
         return
     
     if action == 'add':
-        if not channel_id or not input_mode or not output_mode:
+        if len(args) != 3:
             await ctx.send("❌ 請提供完整參數：`!voice add 頻道ID 輸入 輸出`")
             return
         
+        channel_id_str, input_mode, output_mode = args
         if input_mode not in ['voice', 'text'] or output_mode not in ['voice', 'text']:
             await ctx.send("❌ 模式錯誤：請使用 `voice` 或 `text`")
             return
         
-        channel = ctx.guild.get_channel(int(channel_id))
+        channel = ctx.guild.get_channel(int(channel_id_str))
         if not channel:
-            await ctx.send(f"❌ 找不到頻道 ID：{channel_id}")
+            await ctx.send(f"❌ 找不到頻道 ID：{channel_id_str}")
             return
         
         set_channel_config(channel.id, channel.name, input_mode, output_mode)
         await ctx.send(f"✅ 已設定 **{channel.name}**\n📥 {input_mode} → 📤 {output_mode}")
+        return
         
-    elif action == 'remove':
-        if not channel_id:
-            await ctx.send("❌ 請提供頻道 ID")
+    if action == 'remove':
+        if len(args) != 1:
+            await ctx.send("❌ 請提供頻道 ID：`!voice remove 頻道ID`")
             return
         
-        if remove_channel_config(int(channel_id)):
+        channel_id_str = args[0]
+        if remove_channel_config(int(channel_id_str)):
             await ctx.send("✅ 已移除")
         else:
             await ctx.send("❌ 該頻道沒有設定")
+        return
             
-    elif action == 'list':
+    if action == 'list':
         config = load_config()
         channels = config.get("channels", {})
         
@@ -524,15 +564,18 @@ async def voice_cmd(ctx, action=None, channel_id=None, input_mode=None, output_m
         for ch_id, ch in channels.items():
             text += f"#{ch['name']}: {ch['input']} → {ch['output']}\n"
         await ctx.send(text)
+        return
 
 # ============ 啟動 ============
 @bot.event
 async def on_ready():
     print(f"✅ Voice Bot 已登入: {bot.user}")
     print(f"🎯 Jarvis User ID: {JARVIS_USER_ID}")
-    print(f"🌐 GPU 伺服器: {HOST_IP}:8000")
+    print(f"🌐 GPU STT: {HOST_IP}:{STT_PORT}")
+    print(f"🌐 GPU TTS: {HOST_IP}:{TTS_PORT}")
     print(f"📝 STT 模型: deepdml/faster-whisper-large-v3-turbo-ct2")
-    print(f"🔊 TTS 模型: tts-1 (alloy)")
+    print(f"🔊 TTS 模型: qwen3-tts")
+    
     print("\n📋 指令：")
     print("  !voice add 頻道ID 輸入 輸出  - 設定頻道")
     print("  !voice list                    - 列出頻道")
