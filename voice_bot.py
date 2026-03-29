@@ -33,6 +33,7 @@ import soundfile as sf
 # ============ 設定 ============
 CONFIG_FILE = "voice_channel_config.json"
 JARVIS_USER_ID = "931691223989772308"  # Jarvis (Tom) 的 Discord user ID
+VOICE_ROLE_ID = "1482731709140308127"  # @語音助手 角色 ID
 
 # GPU 伺服器設定
 HOST_IP = "192.168.122.1"
@@ -433,8 +434,19 @@ async def on_message(message):
                     break
     
     # ========== 偵測需要語音回覆 ==========
-    if bot.user in message.mentions:
-        text = message.content.replace(f'<@{bot.user.id}>', '').strip()
+    # 檢查是否標記了 CosBot 或 @語音助手 角色
+    is_user_mentioned = bot.user in message.mentions
+    is_role_mentioned = any(role.id == int(VOICE_ROLE_ID) for role in message.role_mentions)
+    
+    if is_user_mentioned or is_role_mentioned:
+        text = message.content
+        # 移除所有 user mention
+        for mention in message.mentions:
+            text = text.replace(f'<@{mention.id}>', '')
+        # 移除所有 role mention
+        for role in message.role_mentions:
+            text = text.replace(f'<@&{role.id}>', '')
+        text = text.strip()
         
         # 檢查是否為語音回覆請求（包含 💬 標記）
         if text.startswith('💬'):
