@@ -1,11 +1,11 @@
 ---
 name: cosbot-api-client
-description: Use CosBot's GPU STT and TTS API services with Text Normalization. Use when user wants speech-to-text (STT) transcription or text-to-speech (TTS) generation. Supports Chinese, English, and multiple languages with automatic number/time/date normalization using wetext.
+description: Use CosBot's GPU STT and Microsoft Edge TTS services. Use when user wants speech-to-text (STT) transcription or high-quality text-to-speech (TTS) generation. TTS uses Microsoft Azure Neural Voices via edge-tts (free, high quality).
 ---
 
 # CosBot API Client
 
-Use CosBot's GPU-powered Speech-to-Text (STT) and Text-to-Speech (TTS) services.
+Use CosBot's GPU-powered Speech-to-Text (STT) and Microsoft Edge TTS services.
 
 ## Quick Start
 
@@ -19,45 +19,54 @@ text = transcribe_audio("recording.mp3")
 print(f"Transcription: {text}")
 ```
 
-### TTS (Text to Speech)
+### TTS (Text to Speech) - Microsoft Edge TTS
 
 ```python
-from skills.cosbot-api-client.scripts.cosbot_api import generate_speech
+from skills.cosbot-api-client.scripts.cosbot_api import speak, generate_speech
 
-# Generate speech from text (with automatic text normalization)
-audio_file = generate_speech("你好，現在是12:30")
-# Result: "你好，現在是十二点三十分"
+# Simple usage (Taiwan female voice by default)
+audio_file = speak("你好，這是測試語音")
+
+# Specify voice
+audio_file = speak("你好", voice_key="zh-tw-male")
+audio_file = speak("Hello", voice_key="zh-cn-female")
+
+# Custom output file
+audio_file = generate_speech("你好世界", output_file="output.mp3")
 print(f"Audio saved to: {audio_file}")
 ```
 
-## Text Normalization Features
+## Configuration
 
-The TTS function automatically normalizes text using **wetext**:
+| Service | Endpoint | Technology |
+|---------|----------|------------|
+| **STT** | `192.168.122.1:8000` | Whisper (GPU) |
+| **TTS** | Microsoft Edge TTS (Free) | Azure Neural Voices |
 
-| Input | Output |
-|-------|--------|
-| 12:30 | 十二点三十分 |
-| 12345元 | 一万两千三百四十五元 |
-| 25.5度 | 二十五点五度 |
-| 60% | 百分之六十 |
-| 2024年3月30日 | 二零二四年三月三十日 |
+## Available Voices
 
-## API Configuration
+| Voice Key | Description |
+|-----------|-------------|
+| `zh-tw-female` | 曉臻 - Taiwan Female (default) |
+| `zh-tw-male` | 雲哲 - Taiwan Male |
+| `zh-cn-female` | 曉曉 - China Female |
+| `zh-cn-male` | 雲揚 - China Male |
 
-| Service | Endpoint | Model |
-|---------|----------|-------|
-| **STT** | `192.168.122.1:8000` | faster-whisper-large-v3-turbo |
-| **TTS** | `192.168.122.1:8080` | qwen3-tts |
+## CLI Usage
 
-## Supported Languages
+```bash
+# STT
+./scripts/transcribe.py recording.mp3
 
-**STT:** zh, en, ja, ko, de, es, fr, it, pt, ru, and more
-**TTS:** zh (qwen3-tts), en, ja, ko, de, fr, es, ru, pt, it
+# TTS
+./scripts/tts_cli.py "你好世界"
+./scripts/tts_cli.py "Hello" --voice zh-cn-female
+```
 
 ## Dependencies
 
 ```bash
-pip install wetext pypinyin jieba
+pip install edge-tts openai
 ```
 
-Text normalization requires the `wetext` package for converting numbers, time, and dates to spoken form.
+Microsoft Edge TTS is free and doesn't require API keys.
