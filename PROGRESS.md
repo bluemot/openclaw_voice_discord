@@ -100,6 +100,68 @@ AI 工具：gemini、CLI、llm、session、model、prompt、code、coding
 
 ---
 
+## 📅 2026-03-30 (最新更新)
+
+### ✅ 已完成
+
+- [x] 改用 **Microsoft Edge TTS** 取代 GPU TTS
+- [x] 建立 `edge-tts` Skill，支援聲音切換功能
+- [x] 整合 Text Normalization (wetext) 嘗試（後來簡化）
+- [x] CosBot API Client Skill 建立並推送到 GitHub
+- [x] 建立 CosBot 使用指南 `COSBOT_GUIDE.md`
+
+### 🎙️ Edge TTS Skill 功能
+
+**GitHub:** https://github.com/bluemot/openclaw_voice_discord
+
+| 功能 | 說明 |
+|------|------|
+| TTS 產生 | `speak("文字")` - 使用 Microsoft Azure Neural Voices |
+| 聲音切換 | `set_voice("zh-tw-male")` - 切換到男聲 |
+| 設定記憶 | 聲音偏好儲存在 `~/.config/openclaw/edge-tts/` |
+| Discord 指令 | `!voice get/set/list` |
+
+**可用聲音：**
+- `zh-tw-female` - 台灣女聲 (預設) - `zh-TW-HsiaoChenNeural`
+- `zh-tw-male` - 台灣男聲 - `zh-TW-YunJheNeural`
+- `zh-cn-female` - 中國女聲 - `zh-CN-XiaoxiaoNeural`
+- `zh-cn-male` - 中國男聲 - `zh-CN-YunyangNeural`
+
+### 🔧 目前架構
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Voice Assistant 系統                                   │
+├─────────────────────────────────────────────────────────┤
+│  TTS: Microsoft Edge TTS (Azure Neural Voices)        │
+│  - Free, high-quality, fast                             │
+│  - Support: zh-tw-female, zh-tw-male, zh-cn-female, etc │
+│                                                          │
+│  STT: GPU Port 8000 (保留)                              │
+│  - Model: deepdml/faster-whisper-large-v3-turbo-ct2    │
+│  - Location: 192.168.122.1:8000                         │
+│                                                          │
+│  Skills:                                                │
+│  - edge-tts (standalone)                                │
+│  - cosbot-api-client (STT + TTS)                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 📦 Skill 檔案
+
+| Skill | 路徑 | 說明 |
+|-------|------|------|
+| `edge-tts` | `/home/ubuntu/.openclaw/workspace/skills/edge-tts/` | Standalone TTS with voice switching |
+| `cosbot-api-client` | `/home/ubuntu/.openclaw/workspace/skills/cosbot-api-client/` | STT + TTS combined |
+
+### 📝 重要決策
+
+- **改用 Edge TTS**: qwen3-tts 品質不穩定，改用 Microsoft Edge TTS (免費、品質好、速度快)
+- **CosBot 已停止**: 現在使用純 Skill 方式呼叫 TTS，不需要 CosBot bot 在背景執行
+- **STT 保留**: GPU STT (Port 8000) 仍可用於語音轉文字
+
+---
+
 ## 📅 2026-03-22
 
 ### ✅ 已完成
